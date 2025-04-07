@@ -243,6 +243,7 @@ class BaseModel(nn.Module):
             and whether the observation is vectorized or not
         """
         vectorized_env = False
+        is_graph_space = False
         if isinstance(observation, dict):
             assert isinstance(
                 self.observation_space, spaces.Dict
@@ -264,10 +265,13 @@ class BaseModel(nn.Module):
             # as PyTorch use channel first format
             observation = maybe_transpose(observation, self.observation_space)
 
+        elif isinstance(observation, (list, tuple)) and all([isinstance(ob, spaces.GraphInstance) for ob in observation]):
+            is_graph_space = True
+            vectorized_env = is_vectorized_observation(observation, self.observation_space)
         else:
             observation = np.array(observation)
 
-        if not isinstance(observation, dict):
+        if not isinstance(observation, dict) and not is_graph_space:
             # Dict obs need to be handled separately
             vectorized_env = is_vectorized_observation(observation, self.observation_space)
             # Add batch dimension if needed

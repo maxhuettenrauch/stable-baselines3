@@ -12,6 +12,7 @@ import gymnasium as gym
 import numpy as np
 import torch as th
 from gymnasium import spaces
+from torch_geometric.data import Batch, Data
 
 import stable_baselines3 as sb3
 
@@ -378,6 +379,27 @@ def is_vectorized_dict_observation(observation: np.ndarray, observation_space: s
         )
 
 
+def is_vectorized_graph_observation(observation: np.ndarray, observation_space: spaces.Graph) -> bool:
+    """
+    For graph observation type, detects and validates the shape,
+    then returns whether or not the observation is vectorized.
+
+    :param observation: the input observation to validate
+    :param observation_space: the observation space
+    :return: whether the given observation is vectorized or not
+    """
+    if isinstance(observation, spaces.GraphInstance):
+        return False
+    elif isinstance(observation, (list, tuple)) and all([isinstance(_ob, spaces.GraphInstance) for _ob in observation]):
+        return True
+    else:
+        raise ValueError(
+            f"Error: Unexpected observation shape {observation.shape} for Graph "
+            + f"environment, please use {observation_space.shape} or "
+            + f"(n_env, {observation_space.shape}) for the observation shape."
+        )
+
+
 def is_vectorized_observation(observation: Union[int, np.ndarray], observation_space: spaces.Space) -> bool:
     """
     For every observation type, detects and validates the shape,
@@ -394,6 +416,7 @@ def is_vectorized_observation(observation: Union[int, np.ndarray], observation_s
         spaces.MultiDiscrete: is_vectorized_multidiscrete_observation,
         spaces.MultiBinary: is_vectorized_multibinary_observation,
         spaces.Dict: is_vectorized_dict_observation,
+        spaces.Graph: is_vectorized_graph_observation,
     }
 
     for space_type, is_vec_obs_func in is_vec_obs_func_dict.items():
@@ -485,6 +508,16 @@ def obs_as_tensor(obs: Union[np.ndarray, Dict[str, np.ndarray]], device: th.devi
         return th.as_tensor(obs, device=device)
     elif isinstance(obs, dict):
         return {key: th.as_tensor(_obs, device=device) for (key, _obs) in obs.items()}
+    elif isinstance(obs, spaces.GraphInstance):
+        return Data(x=th.as_tensor(obs.nodes, device=device),
+                    edge_index=th.as_tensor(obs.edge_links, device=device).t().contiguous(),
+                    edge_attr=th.as_tensor(obs.edges, device=device))
+    elif isinstance(obs, (list, tuple)) and all([isinstance(ob, spaces.GraphInstance) for ob in obs]):
+        data_list = [Data(x=th.as_tensor(_ob.nodes, device=device),
+                          edge_index=th.as_tensor(_ob.edge_links, device=device).t().contiguous(),
+                          edge_attr=th.as_tensor(_ob.edges, device=device)) for _ob in obs]
+        batch = Batch.from_data_list(data_list)
+        return batch
     else:
         raise Exception(f"Unrecognized type of observation {type(obs)}")
 
