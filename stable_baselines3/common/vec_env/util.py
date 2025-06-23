@@ -52,6 +52,8 @@ def obs_space_info(obs_space: spaces.Space) -> Tuple[List[str], Dict[Any, Tuple[
         subspaces = obs_space.spaces
     elif isinstance(obs_space, spaces.Tuple):
         subspaces = {i: space for i, space in enumerate(obs_space.spaces)}  # type: ignore[assignment,misc]
+    elif isinstance(obs_space, spaces.Graph):
+        subspaces = {None: spaces.Box(low=-np.inf, high=np.inf)}
     else:
         assert not hasattr(obs_space, "spaces"), f"Unsupported structured space '{type(obs_space)}'"
         subspaces = {None: obs_space}  # type: ignore[assignment,dict-item]
