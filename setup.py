@@ -78,7 +78,7 @@ setup(
     install_requires=[
         "gymnasium>=0.29.1,<1.1.0",
         "numpy>=1.20,<2.0",  # PyTorch not compatible https://github.com/pytorch/pytorch/issues/107302
-        "torch>=1.13",
+        "torch>=1.13,<2.3",
         # For saving models
         "cloudpickle",
         # For reading logs
